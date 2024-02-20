@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON test</title>
+
+  <style>
+    * {
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: normal;
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    .font-bold {
+      font-weight: 600;
+    }
+
+    .data-table {
+      border-collapse: collapse;
+    }
+
+    .data-table, .data-table th, .data-table td {
+      border: 1px solid black;
+    }
+
+    th, td {
+      padding: 2px;
+    }
+
+    th {
+      text-align: center;
+      font-weight: 600;
+    }
+
+    #main {
+      display: grid;
+      grid-template-columns: 50% 50%;
+      min-height: 100vh;
+    }
+
+    #main > * {
+      padding: 5px;
+    }
+
+    #main > *:first-child {
+      border-right: 1px solid black;
+    }
+
+    .space-y > *:not(:last-child) {
+      margin-bottom: 15px;
+    }
+
+    #submit-form {
+      display: inline-block;
+    }
+
+    button[type=submit] {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="main">
+    <div class="space-y">
+      <h3 class="font-bold">ウェブサーバから取得した情報</h3>
+  
+      <!-- ウェブサーバから読み込んだ情報をここに記載 -->
+      <pre id="content"></pre>
+      
+      <!-- 県 -->
+      <p id="region"></p>
+
+      <!-- 気温 -->
+      <p id="temperature"></p>
+  
+      <h3 class="font-bold">雨が降る地域</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>地域</th>
+            <th>降水確率</th>
+          </tr>
+        </thead>
+        <!-- 降水確率 -->
+        <tbody id="rain-areas"></tbody>
+      </table>
+    </div>
+
+    <div class="space-y">
+      <h3 class="font-bold">ウェブサーバに新しいデータを送信</h3>
+
+      <!-- 新しいデータをサーバーに提供する -->
+      <form class="space-y" id="submit-form">
+        <table class="form-table">
+          <tbody>
+            <tr>
+              <th>市:</th>
+              <td>
+                <input type="text" id="submit-city" />
+              </td>
+            </tr>
+            <tr>
+              <th>降水確率:</th>
+              <td>
+                <input type="number" step="0.01" id="submit-probability" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <button type="submit">確認</button>
+      </form>
+    </div>
+  </div>
+
+   <!-- ウェブページをリロード(再読み込み)せずに情報を読み取ることはAJAXという。 -->
+   <!-- AJAXは、Asynchronous (非同期的) Javascript and XML (XMLとは、要するにJSONより古いデータ交換用の形式) -->
+   <!-- 現代の情報は多くJSONで返される。でも昔からのサーバにXMLで情報提供されることは全くおかしくない。 -->
+   <!-- Javascriptを使って、ウェブサーバから情報を求める。 -->
+  <script>
+    const contentEl = document.getElementById('content')
+    const regionEl = document.getElementById('region')
+    const temperatureEl = document.getElementById('temperature')
+    const rainAreasEl = document.getElementById('rain-areas')
+    const submitForm = document.getElementById('submit-form')
+
+    // XMLHttpRequestを使用した古いやりかた。ここに見せるだけで、使用しない。
+    function requestDataOldStyle() {
+
+      const request = new XMLHttpRequest()
+      request.onload = () => {
+        const responseText = JSON.parse(request.responseText)
+        contentEl.innerText = JSON.stringify(responseText, null, 2)
+      }
+      request.open('GET', '/api/weather/ishikawa')
+      request.send()
+
+    }
+
+    // fetchを使用した現代のやりから
+    async function requestData() {
+
+      const response = await fetch('/api/weather/ishikawa')
+      const responseText = await response.text()
+      
+      // 上の時点ではまだただの文字列しかないのですが、
+      // JSON形式の文字列だから簡単に中の情報を抽出できる。
+      const data = JSON.parse(responseText)
+
+      contentEl.innerText = JSON.stringify(data, null, 2)
+
+      regionEl.innerHTML = `<span class="font-bold">地域</span>: ${data.region}`
+      temperatureEl.innerHTML = `<span class="font-bold">気温</span>: ${data.temperature}&deg;C / ${data.temperature * (9/5) + 32}&deg;F`
+     
+      // 配列から多数のデータを表示する
+      rainAreasEl.innerHTML = ''
+      for(const rainArea of data.rainAreas) {
+        rainAreasEl.innerHTML += 
+        `
+        <tr>
+          <td>${rainArea.city}</td>
+          <td>${rainArea.probability}</td>
+        </tr>
+        `
+      }
+    }
+
+    // フォームデータを送信する時
+    submitForm.addEventListener('submit', async e => {
+      e.preventDefault()
+
+      // 入力されたデータを取得
+      const city = document.getElementById('submit-city').value
+      const probability = document.getElementById('submit-probability').value
+
+      // Javascriptオブジェクトを構築
+      const data = {
+        city,
+        probability: +probability
+      }
+
+      // JavascriptオブジェクトをJSON形式の文字列に変換して、サーバーに送信する
+      const response = await fetch('/api/weather/ishikawa', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      // サーバーからOKのレスポンス貰ったら、ウェブページのデータを更新する
+      if(response.ok) {
+        window.alert('更新しました！')
+        submitForm.reset()
+        requestData()
+      }
+    })
+
+    // ウェブページの読み込みが終わったらすぐにデータのリクエストをサーバーに送る
+    requestData()
+  </script>
+</body>
+</html>

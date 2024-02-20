@@ -1,0 +1,18 @@
+{
+  "region": "石川県",
+  "temperature": 34.9,
+  "rainAreas": [
+    {
+      "city": "七尾市",
+      "probability": 60.5
+    },
+    {
+      "city": "野々市市",
+      "probability": 70
+    },
+    {
+      "city": "白山市",
+      "probability": 68
+    }
+  ]
+}
